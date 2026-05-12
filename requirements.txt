@@ -22,9 +22,12 @@ torchaudio>=2.2
 # --- ASR (Whisper) ---
 faster-whisper>=1.0.3
 
-# --- TTS (Coqui) ---
-# Coqui TTS pulls in its own torch pin; install AFTER torch above.
-TTS>=0.22.0
+# --- TTS (Coqui — maintained fork) ---
+# The original `TTS` package (0.22.0) pins pandas<2.0, numpy<1.25, torch<2.2,
+# etc. and won't resolve on modern Python 3.11 stacks. `coqui-tts` is the
+# actively maintained idiap fork with the same XTTS-v2 model and compatible
+# APIs. Install AFTER torch above.
+coqui-tts>=0.24.0
 
 # --- Speaker similarity / metrics ---
 resemblyzer>=0.1.4
