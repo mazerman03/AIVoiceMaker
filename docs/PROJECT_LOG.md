@@ -328,6 +328,10 @@ Completed (Mac side):
 - [x] Mac conda env (`aivoice`, Python 3.11) + preprocessing deps installed
 - [x] Preprocessing run on all 4 MP3s → 2,250 chunks verified
 - [x] Zip handoff to Tareas folder (451 MB)
+- [x] Receive 7 GB fine-tuned checkpoint zip back from PC and unpack
+- [x] `python -m src.evaluate` → similarity 0.846, WER 11.4 % / 27.8 %
+- [x] `python app/gradio_app.py` → live demo on http://127.0.0.1:7860
+- [x] 10 showcase samples generated into `docs/samples/` for GH Pages
 
 Completed (PC side):
 - [x] Python 3.11 installed (winget), repo cloned, venv built
@@ -335,15 +339,17 @@ Completed (PC side):
 - [x] Whisper transcription: 2,250/2,250 in ~40 min with `faster-whisper`
       `large-v3 int8_float16`, ~4–5 GB VRAM. `data/manifest.csv` produced.
 - [x] Train/val split run
+- [x] XTTS-v2 fine-tune: 10 epochs, 1,012 steps/epoch, fp16, RTX 3070,
+      ~2 h 13 min wall-clock. Final eval loss 5.16 (down from 5.94 at step 0).
+- [x] Ship `models/finetuned/<run>/` back to Mac (full ~7 GB zip incl.
+      checkpoints 9000 + 10000 + best_model + best_model_1013).
 
-In progress:
-- [ ] PC: XTTS-v2 fine-tune — see § 6.7 for the dependency saga that
-      preceded the first real training step
-- [ ] Ship `models/finetuned/<run>/` back to Mac
-- [ ] On Mac: `python -m src.evaluate` → loss curves, similarity, WER
-- [ ] On Mac: `python app/gradio_app.py` → live demo
-- [ ] (Optional) copy a few `evaluation/synth/prompt_*.wav` into
-      `docs/samples/` and enable GitHub Pages
+Optional follow-ups (not committed):
+- [ ] Resume training from `best_model.pth` for ~5 more epochs at LR 1e-6
+      ("polish pass") to further reduce eval loss.
+- [ ] Re-run preprocessing with stricter VAD / drop chunks <3 s, then
+      re-fine-tune to reduce mumbles in the source data.
+- [ ] Push GH Pages live (already has 10 samples + working JS).
 
 ### 6.7 Windows / Coqui-TTS dependency saga (worth keeping in the report)
 
@@ -400,6 +406,119 @@ valuable activity once preprocessing was done. This is not unique to
 this project — it is the dominant friction surface of any deep-learning
 side project in 2026 and should be acknowledged as such in the report,
 not hidden away.
+
+### 6.8 Final fine-tune, handoff back to Mac, evaluation
+
+After commit `c51b0ac` the trainer ran cleanly to completion:
+
+- **Total parameters trained:** 498,699,671 (full XTTS-v2 GPT module).
+- **Epochs / steps:** 10 epochs × 1,012 steps = 10,120 optimizer steps,
+  effective batch size 16 (per-GPU 2 × grad-accum 8).
+- **Mixed precision:** fp16, RTX 3070 8 GB.
+- **Wall clock:** ~2 h 13 min (10:55 → 13:08 local time).
+- **Loss trajectory:**
+  - Step 0:        `loss=0.7509  loss_text_ce=0.0685  loss_mel_ce=5.939`
+  - Final eval:    `avg_loss=5.161  avg_loss_text_ce=0.0660  avg_loss_mel_ce=5.095`
+- **Checkpoints written** (in `models/finetuned/xtts_v2_finetune-May-12-2026_11+06AM-c51b0ac/`):
+  `best_model.pth` (2.08 GB), `best_model_1013.pth`, `checkpoint_9000.pth`,
+  `checkpoint_10000.pth`, `config.json`, `events.out.tfevents.*`,
+  `train.py`, `trainer_0_log.txt` (366 KB).
+
+**Handoff back to Mac.** Compressed the entire run directory plus the
+pretrained `vocab.json`, `config.json`, `mel_stats.pth` (XTTS-v2 needs
+these alongside the fine-tuned weights at inference time) into a single
+~7 GB zip via PowerShell `Compress-Archive`. Transferred to
+`/Users/maxzemeno/Documents/GitHub/AIVoiceMaker/models/finetuned/` and
+unzipped with `unzip -q`.
+
+**Mac inference fixes** (commit `d994315`):
+1. Mac `pip install -r requirements.txt` pulled torch 2.9 (matching the
+   PC side's torchcodec dependency); pinned `torchcodec>=0.8.0` in
+   `requirements.txt`.
+2. XTTS's `model.load_checkpoint(checkpoint_dir=...)` strictly looks for
+   a file named `model.pth`; our trainer wrote `best_model.pth`. Rewrote
+   `src/infer.py::load_model()` to use `checkpoint_path=` with an
+   explicit fallback list (`best_model.pth` → `model.pth` → newest
+   `checkpoint_*.pth`) plus an explicit `vocab_path=` to avoid relying
+   on the legacy directory-scan code path.
+3. Copied `vocab.json` + `mel_stats.pth` from `models/pretrained/XTTS-v2/`
+   into the run directory so XTTS could find them.
+
+**Evaluation results** (`python -m src.evaluate`, 5 held-out prompts +
+10 randomly sampled validation utterances):
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Speaker similarity (cosine, Resemblyzer embeddings) | **0.846** | 1.0 = identical, 0.5 = unrelated. >0.8 is "clearly the same speaker". |
+| WER on held-out prompts (Whisper-transcribed re-synthesis vs. ground-truth text) | **11.4 %** | Industry benchmark for fine-tuned XTTS-v2 is 8–15 %. |
+| WER on validation split (re-synthesis vs. Whisper pseudo-label) | **27.8 %** | Higher because the pseudo-labels themselves are noisy. |
+
+15 sample wavs were written to `evaluation/synth/` (held-out) and
+`evaluation/val_synth/` (validation). The `evaluation/` directory was
+added to `.gitignore` to keep the repo lean (commit `2c6d753`).
+
+### 6.9 Voice quality improvements (post-evaluation)
+
+The first end-to-end demo sounded "synthetic" because two
+quality-cheap-but-impactful knobs were left at their defaults:
+
+1. **Single short reference clip.** XTTS-v2 builds a speaker embedding
+   from the reference audio passed at inference time. The previous code
+   used the *first* file in `data/chunks/` (a ~3 s clip) — far less
+   prosodic context than the 6 s the model can absorb per reference, and
+   no cross-clip averaging.
+2. **Default generation parameters** (`temperature=0.65`,
+   `repetition_penalty=2.0`) — Coqui's defaults are tuned for
+   English-language stability, not expressiveness; the upstream XTTS
+   demo uses `repetition_penalty≈5.0` to suppress stutters and a
+   slightly higher temperature for natural prosody.
+
+Implemented in commit `f984027`:
+
+- **`src/infer.py`**:
+  - `list_reference_chunks(min_seconds, limit)` scans `data/chunks/` and
+    returns the longest available clips (the dataset has hundreds of
+    11.98 s clips from "【CHAT】Back from Japan").
+  - `synthesize()` now accepts `reference_wav: Path | list[Path]`. When
+    a list is passed, XTTS averages the speaker embedding across all
+    clips → noticeably less robotic.
+  - All XTTS generation knobs are exposed as kwargs: `temperature`,
+    `length_penalty`, `repetition_penalty`, `top_k`, `top_p`, `speed`,
+    `enable_text_splitting` (the last is `True` by default for smoother
+    multi-sentence output). New defaults: `T=0.7, repetition_penalty=5.0,
+    top_p=0.85`.
+- **`app/gradio_app.py`**:
+  - Multi-select dropdown of the 20 longest reference clips, defaulting
+    to the top 3.
+  - Sliders for every generation parameter, with inline help text.
+  - Examples expanded from 3 → 12 (statements, questions,
+    tongue-twisters, narrative, long sentences).
+- **`docs/samples/`**: regenerated all 10 showcase clips using the new
+  multi-reference pipeline + tuned params; rewrote `index.json`. Added
+  `!docs/samples/*.wav` exception in `.gitignore` so the static site can
+  actually serve them on GitHub Pages.
+
+**Bug fix (commit `[pending]`):** the first user attempt to generate
+through the new Gradio sliders raised
+`ValueError: penalty has to be a strictly positive float, but is 5` from
+`transformers.RepetitionPenaltyLogitsProcessor`. Newer
+`transformers` strictly checks `isinstance(penalty, float)`, but Gradio
+sliders with integer-valued positions return Python `int`. Fixed by
+casting all numeric kwargs to `float()` / `int()` before forwarding to
+`model.synthesize(...)` in `src/infer.py`. Verified with a CLI smoke
+test: passing `repetition_penalty=5` (int) now succeeds.
+
+### 6.10 Status after the quality pass
+
+The full pipeline is end-to-end working on Mac:
+
+- Gradio app live at `http://127.0.0.1:7860` with 12 examples, 3-clip
+  reference averaging, and full generation control.
+- 10 web-ready samples in `docs/samples/` ready for GitHub Pages.
+- Subjective quality: noticeably warmer and more expressive than the
+  initial single-reference output; remaining "TTS-ness" is now mostly
+  attributable to the modest dataset size (~3 h) and short fine-tune
+  (10 epochs). Both are addressable with another PC training session.
 
 ## 8. Citations / dependencies (for the report)
 

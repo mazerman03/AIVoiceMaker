@@ -188,13 +188,13 @@ def synthesize(
         config=config,
         speaker_wav=refs if len(refs) > 1 else refs[0],
         language=language,
-        temperature=temperature,
-        length_penalty=length_penalty,
-        repetition_penalty=repetition_penalty,
-        top_k=top_k,
-        top_p=top_p,
-        speed=speed,
-        enable_text_splitting=enable_text_splitting,
+        temperature=float(temperature),
+        length_penalty=float(length_penalty),
+        repetition_penalty=float(repetition_penalty),
+        top_k=int(top_k),
+        top_p=float(top_p),
+        speed=float(speed),
+        enable_text_splitting=bool(enable_text_splitting),
     )
     wav = out["wav"] if isinstance(out, dict) else out
     sr = getattr(config, "output_sample_rate", 24000)

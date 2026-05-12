@@ -78,7 +78,7 @@ def main() -> None:
     setup_logging()
     ref_options = _ref_choices()
     initial = _initial_refs()
-    with gr.Blocks(title="AIVoiceMaker", theme=gr.themes.Soft()) as demo:
+    with gr.Blocks(title="AIVoiceMaker") as demo:
         gr.Markdown(
             "# AIVoiceMaker\n"
             "Type text → hear it spoken in the fine-tuned voice. "
@@ -140,7 +140,7 @@ def main() -> None:
             inputs=[text, refs, temperature, top_p, top_k, repetition_penalty, speed],
             outputs=audio,
         )
-    demo.launch()
+    demo.launch(theme=gr.themes.Soft())
 
 
 if __name__ == "__main__":
