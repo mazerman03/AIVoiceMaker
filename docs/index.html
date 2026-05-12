@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AIVoiceMaker</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.55;
+  }
+  h1 { margin-bottom: 0.25rem; }
+  .sub { color: #666; margin-top: 0; }
+  code, pre { background: rgba(127,127,127,0.12); border-radius: 4px; }
+  code { padding: 0.1em 0.35em; }
+  pre { padding: 0.75rem; overflow-x: auto; }
+  .sample { border: 1px solid rgba(127,127,127,0.25); border-radius: 8px;
+            padding: 0.75rem 1rem; margin: 0.75rem 0; }
+  .sample h3 { margin: 0 0 0.4rem 0; font-size: 1rem; }
+  audio { width: 100%; }
+  footer { margin-top: 3rem; color: #777; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<h1>AIVoiceMaker</h1>
+<p class="sub">A voice-cloning text-to-speech pipeline. Type text → hear it
+spoken in a voice fine-tuned from YouTube recordings.</p>
+
+<h2>What this is</h2>
+<p>
+  An end-to-end pipeline that auto-transcribes single-speaker MP3s with
+  Whisper, fine-tunes Coqui XTTS-v2 on that voice, and exposes a local
+  Gradio app for live type-to-speech. Source on
+  <a href="https://github.com/">GitHub</a>.
+</p>
+
+<h2>Why this page is static</h2>
+<p>
+  GitHub Pages only serves static files — it can't run a TTS model. So this
+  page hosts <em>pre-generated</em> audio samples. To try the live
+  type-to-speech demo, run <code>python app/gradio_app.py</code> locally
+  after training.
+</p>
+
+<h2>Samples</h2>
+<div id="samples">
+  <p><em>Loading samples…</em></p>
+</div>
+
+<h2>Run it yourself</h2>
+<pre><code>git clone &lt;repo&gt; AIVoiceMaker
+cd AIVoiceMaker
+pip install -r requirements.txt
+# Drop MP3s into data/raw/, then:
+python -m src.preprocess
+python -m src.transcribe
+python -m src.split_dataset
+python -m src.train
+python app/gradio_app.py</code></pre>
+<p>See <a href="HANDOFF.md">HANDOFF.md</a> for the Mac ↔ GPU-PC workflow.</p>
+
+<footer>
+  Built with Coqui XTTS-v2 (CPML, non-commercial), faster-whisper, Silero
+  VAD, Resemblyzer, and Gradio.
+</footer>
+
+<script>
+// Auto-list any *.wav files placed in docs/samples/.
+// We try a known manifest first, then fall back to a small probe set.
+async function loadSamples() {
+  const target = document.getElementById('samples');
+  let files = [];
+  try {
+    const res = await fetch('samples/index.json', {cache: 'no-store'});
+    if (res.ok) files = await res.json();
+  } catch (_) {}
+  if (!files.length) {
+    // Fallback: probe a few default filenames the evaluate.py step writes.
+    const probes = [
+      'prompt_00.wav','prompt_01.wav','prompt_02.wav',
+      'prompt_03.wav','prompt_04.wav'
+    ];
+    for (const name of probes) {
+      try {
+        const r = await fetch('samples/' + name, {method: 'HEAD'});
+        if (r.ok) files.push({file: name, label: name});
+      } catch (_) {}
+    }
+  }
+  if (!files.length) {
+    target.innerHTML = '<p><em>No samples yet. Generate some with ' +
+      '<code>python -m src.evaluate</code> and copy the resulting WAVs ' +
+      'into <code>docs/samples/</code>, then commit.</em></p>';
+    return;
+  }
+  target.innerHTML = '';
+  for (const f of files) {
+    const name = typeof f === 'string' ? f : f.file;
+    const label = typeof f === 'string' ? f : (f.label || f.file);
+    const div = document.createElement('div');
+    div.className = 'sample';
+    div.innerHTML =
+      '<h3>' + label + '</h3>' +
+      '<audio controls preload="none" src="samples/' + name + '"></audio>';
+    target.appendChild(div);
+  }
+}
+loadSamples();
+</script>
+
+</body>
+</html>

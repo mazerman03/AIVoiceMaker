@@ -179,3 +179,21 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# AIVoiceMaker — large / generated artifacts (never commit)
+data/
+models/
+runs/
+.gradio/
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+*.ckpt
+*.pth
+*.pt
+*.bin
+*.safetensors
+tensorboard/
+lightning_logs/

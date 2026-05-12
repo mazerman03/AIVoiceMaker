@@ -1,0 +1,34 @@
+# Base requirements (Mac M1 Pro: preprocessing, eval, Gradio demo).
+# For the Windows + RTX 3070 training machine, ALSO install requirements-cuda.txt
+# AFTER installing this file (it overrides torch with the CUDA build).
+
+# --- Core audio + numerics ---
+numpy>=1.24,<2.0
+pandas>=2.0
+matplotlib>=3.7
+tqdm>=4.66
+soundfile>=0.12
+librosa>=0.10
+pydub>=0.25
+pyloudnorm>=0.1.1
+
+# --- PyTorch (Mac/CPU default; Windows+CUDA users override via requirements-cuda.txt) ---
+torch>=2.2
+torchaudio>=2.2
+
+# --- Voice activity detection ---
+# Silero VAD is fetched via torch.hub at runtime; no extra package needed.
+
+# --- ASR (Whisper) ---
+faster-whisper>=1.0.3
+
+# --- TTS (Coqui) ---
+# Coqui TTS pulls in its own torch pin; install AFTER torch above.
+TTS>=0.22.0
+
+# --- Speaker similarity / metrics ---
+resemblyzer>=0.1.4
+jiwer>=3.0
+
+# --- App ---
+gradio>=4.0

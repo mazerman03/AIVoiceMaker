@@ -1,0 +1,7 @@
+[
+  {"file": "prompt_00.wav", "label": "The quick brown fox jumps over the lazy dog."},
+  {"file": "prompt_01.wav", "label": "Artificial intelligence is reshaping how we create media."},
+  {"file": "prompt_02.wav", "label": "I am a synthetic voice trained on YouTube recordings."},
+  {"file": "prompt_03.wav", "label": "Today's weather is unusually pleasant for this time of year."},
+  {"file": "prompt_04.wav", "label": "Please save your work before closing the application."}
+]

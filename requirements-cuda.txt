@@ -1,0 +1,16 @@
+# Windows + RTX 3070 additions.
+# Install AFTER `pip install -r requirements.txt`, so the CUDA torch build
+# replaces the CPU one.
+#
+# Usage (PowerShell or cmd, in the project venv):
+#   pip install -r requirements.txt
+#   pip install -r requirements-cuda.txt
+#
+# CUDA 12.1 build of PyTorch (works on RTX 3070, driver >= 530).
+
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.3.1+cu121
+torchaudio==2.3.1+cu121
+
+# faster-whisper uses CTranslate2; the standard wheel includes CUDA support
+# on Windows. No extra install needed beyond requirements.txt.
