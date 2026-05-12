@@ -122,6 +122,20 @@ def run_xtts_finetune(cfg: TrainConfig, dataset_root: Path, out_dir: Path) -> Pa
     pretrained_dir.mkdir(parents=True, exist_ok=True)
     log.info("Pretrained model dir: %s", pretrained_dir)
 
+    from huggingface_hub import hf_hub_download
+    required_files = ["mel_stats.pth", "dvae.pth", "model.pth", "vocab.json", "config.json"]
+    for fname in required_files:
+        target = pretrained_dir / fname
+        if not target.exists():
+            log.info("Downloading %s from coqui/XTTS-v2 ...", fname)
+            hf_hub_download(
+                repo_id="coqui/XTTS-v2",
+                filename=fname,
+                local_dir=str(pretrained_dir),
+                local_dir_use_symlinks=False,
+            )
+    log.info("Pretrained XTTS-v2 files ready.")
+
     config = GPTTrainerConfig(
         output_path=str(out_dir),
         model_args=GPTArgs(
