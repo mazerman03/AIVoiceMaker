@@ -1,4 +1,0 @@
-metric,value
-speaker_similarity_cosine,0.8458
-wer_held_out,0.1136
-wer_validation_split,0.2781

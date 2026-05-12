@@ -184,7 +184,9 @@ cython_debug/
 data/
 models/
 runs/
+evaluation/
 .gradio/
+.DS_Store
 *.mp3
 *.wav
 *.flac
