@@ -108,7 +108,7 @@ def run_xtts_finetune(cfg: TrainConfig, dataset_root: Path, out_dir: Path) -> Pa
     try:
         from TTS.tts.configs.xtts_config import XttsConfig
         from TTS.tts.models.xtts import Xtts
-        from TTS.tts.layers.xtts.trainer.gpt_trainer import GPTArgs, GPTTrainer, GPTTrainerConfig
+        from TTS.tts.layers.xtts.trainer.gpt_trainer import GPTArgs, GPTTrainer, GPTTrainerConfig, XttsAudioConfig
         from trainer import Trainer, TrainerArgs
     except Exception as e:
         raise SystemExit(
@@ -157,7 +157,7 @@ def run_xtts_finetune(cfg: TrainConfig, dataset_root: Path, out_dir: Path) -> Pa
         run_description="XTTS-v2 fine-tune on AIVoiceMaker dataset",
         dashboard_logger="tensorboard",
         logger_uri=None,
-        audio={"sample_rate": 22050, "dvae_sample_rate": 22050, "output_sample_rate": 24000},
+        audio=XttsAudioConfig(sample_rate=22050, dvae_sample_rate=22050, output_sample_rate=24000),
         epochs=cfg.epochs,
         batch_size=cfg.batch_size,
         batch_group_size=48,
