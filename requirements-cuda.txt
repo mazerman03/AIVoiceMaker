@@ -7,10 +7,12 @@
 #   pip install -r requirements-cuda.txt
 #
 # CUDA 12.1 build of PyTorch (works on RTX 3070, driver >= 530).
+# 2.5.x is the highest 2.x line with cu121 wheels and is what coqui-tts
+# (which requires torch >= 2.4) targets.
 
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.3.1+cu121
-torchaudio==2.3.1+cu121
+torch==2.5.1+cu121
+torchaudio==2.5.1+cu121
 
 # faster-whisper uses CTranslate2; the standard wheel includes CUDA support
 # on Windows. No extra install needed beyond requirements.txt.
