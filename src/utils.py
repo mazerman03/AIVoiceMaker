@@ -5,6 +5,11 @@ import logging
 import os
 from pathlib import Path
 
+# Windows-only: PyTorch and ctranslate2/onnxruntime each ship their own
+# libiomp5md.dll. Loading both crashes the process. Allowing the duplicate
+# is the documented workaround and is safe for our inference + training use.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
