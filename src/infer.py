@@ -65,7 +65,23 @@ def load_model(checkpoint_dir: Optional[Path] = None):
     config = XttsConfig()
     config.load_json(str(config_path))
     model = Xtts.init_from_config(config)
-    model.load_checkpoint(config, checkpoint_dir=str(ckpt), use_deepspeed=False)
+    # Pick the actual fine-tuned checkpoint file (Coqui trainer saves
+    # `best_model.pth`, while plain XTTS releases use `model.pth`).
+    weight_candidates = [
+        ckpt / "best_model.pth",
+        ckpt / "model.pth",
+    ]
+    weight_candidates += sorted(ckpt.glob("checkpoint_*.pth"), reverse=True)
+    weight_path = next((p for p in weight_candidates if p.exists()), None)
+    if weight_path is None:
+        raise FileNotFoundError(f"No model.pth/best_model.pth/checkpoint_*.pth in {ckpt}")
+    vocab_path = ckpt / "vocab.json"
+    model.load_checkpoint(
+        config,
+        checkpoint_path=str(weight_path),
+        vocab_path=str(vocab_path) if vocab_path.exists() else None,
+        use_deepspeed=False,
+    )
     device = pick_torch_device()
     if device == "cuda":
         model.cuda()
