@@ -189,6 +189,8 @@ evaluation/
 .DS_Store
 *.mp3
 *.wav
+# Keep showcase samples for the static GitHub Pages site
+!docs/samples/*.wav
 *.flac
 *.ogg
 *.m4a

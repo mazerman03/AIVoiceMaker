@@ -1,7 +1,42 @@
 [
-  {"file": "prompt_00.wav", "label": "The quick brown fox jumps over the lazy dog."},
-  {"file": "prompt_01.wav", "label": "Artificial intelligence is reshaping how we create media."},
-  {"file": "prompt_02.wav", "label": "I am a synthetic voice trained on YouTube recordings."},
-  {"file": "prompt_03.wav", "label": "Today's weather is unusually pleasant for this time of year."},
-  {"file": "prompt_04.wav", "label": "Please save your work before closing the application."}
+  {
+    "file": "prompt_00.wav",
+    "label": "Hello! This is my AI cloned voice, fine-tuned on three hours of YouTube audio."
+  },
+  {
+    "file": "prompt_01.wav",
+    "label": "Artificial intelligence is reshaping how we create digital media."
+  },
+  {
+    "file": "prompt_02.wav",
+    "label": "The quick brown fox jumps over the lazy dog."
+  },
+  {
+    "file": "prompt_03.wav",
+    "label": "She sells seashells by the seashore on sunny summer afternoons."
+  },
+  {
+    "file": "prompt_04.wav",
+    "label": "Once upon a time, in a land far, far away, a small fox went on an adventure."
+  },
+  {
+    "file": "prompt_05.wav",
+    "label": "Did you know that Hololive is a Japanese virtual YouTuber agency?"
+  },
+  {
+    "file": "prompt_06.wav",
+    "label": "Today's weather is unusually pleasant for this time of year."
+  },
+  {
+    "file": "prompt_07.wav",
+    "label": "I can read full sentences with natural rhythm and intonation."
+  },
+  {
+    "file": "prompt_08.wav",
+    "label": "Please save your work before closing the application."
+  },
+  {
+    "file": "prompt_09.wav",
+    "label": "Goodbye, and thank you for trying out the AI voice maker demo."
+  }
 ]
