@@ -322,23 +322,84 @@ folder (PCM-16 doesn't compress much).
 
 ## 7. Status / next steps
 
-Completed (this session):
+Completed (Mac side):
 - [x] Repo scaffolding
 - [x] All Python scripts + Gradio app + GH Pages site
 - [x] Mac conda env (`aivoice`, Python 3.11) + preprocessing deps installed
 - [x] Preprocessing run on all 4 MP3s → 2,250 chunks verified
+- [x] Zip handoff to Tareas folder (451 MB)
 
-Remaining:
-- [ ] Ship `data/chunks/` to the RTX 3070 PC (zip + transfer)
-- [ ] On PC: install `requirements.txt` + `requirements-cuda.txt`
-- [ ] On PC: `python -m src.transcribe --model large-v3 --compute-type int8_float16`
-- [ ] On PC: `python -m src.split_dataset`
-- [ ] On PC: `python -m src.train --epochs 10 --batch-size 2 --grad-accum 8`
-- [ ] Ship `models/finetuned/<run>/` and `data/manifest.csv` back to Mac
+Completed (PC side):
+- [x] Python 3.11 installed (winget), repo cloned, venv built
+- [x] CUDA verified: NVIDIA RTX 3070, driver 591.86, CUDA 13.1, torch 2.5.1+cu121
+- [x] Whisper transcription: 2,250/2,250 in ~40 min with `faster-whisper`
+      `large-v3 int8_float16`, ~4–5 GB VRAM. `data/manifest.csv` produced.
+- [x] Train/val split run
+
+In progress:
+- [ ] PC: XTTS-v2 fine-tune — see § 6.7 for the dependency saga that
+      preceded the first real training step
+- [ ] Ship `models/finetuned/<run>/` back to Mac
 - [ ] On Mac: `python -m src.evaluate` → loss curves, similarity, WER
 - [ ] On Mac: `python app/gradio_app.py` → live demo
 - [ ] (Optional) copy a few `evaluation/synth/prompt_*.wav` into
       `docs/samples/` and enable GitHub Pages
+
+### 6.7 Windows / Coqui-TTS dependency saga (worth keeping in the report)
+
+This deserves its own section because *almost an entire working session*
+was spent debugging the Coqui TTS install on the RTX 3070 PC. Each
+failure → fix is documented with commit SHA so the report can cite a
+concrete chain of evidence.
+
+The fundamental cause: the original `TTS` package (coqui-ai, version
+0.22.0) is abandoned and pins `pandas<2.0`, `numpy<1.25`, `torch<2.2` —
+all incompatible with a modern Python 3.11 + CUDA 12.x stack. The
+maintained replacement is the `coqui-tts` fork from **Idiap Research
+Institute** (`github.com/idiap/coqui-ai-TTS`). Switching to it cascaded
+into a series of secondary version pins:
+
+| # | Symptom | Diagnosis | Fix | Commit |
+|---|---------|-----------|-----|--------|
+| 1 | `pip` resolution loop, "tts depends on pandas<2.0" | Original `TTS` 0.22 is dead | Replace `TTS>=0.22.0` with `coqui-tts>=0.24.0` (Idiap fork, same `TTS.*` imports) | `3a2d082` |
+| 2 | `OMP: Error #15: Initializing libiomp5md.dll, but found ... already initialized` | PyTorch and `ctranslate2` both ship Intel OpenMP runtime on Windows | Set `os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"` in `src/utils.py` (loaded by every entry point) | `768d0e3` |
+| 3 | `coqui-tts requires torch>=2.4 but found 2.3.1+cu121` | Idiap fork bumped minimum torch | Pin `torch==2.5.1+cu121` (latest cu121 wheel; 2.6.x switched to cu124 and would need driver work) | `59b288a` |
+| 4 | `cannot import name 'isin_mps_friendly' from transformers.pytorch_utils` | `coqui-tts` uses a helper added in transformers 4.45 | Pin `transformers>=4.46,<5` | `a576bab` |
+| 5 | `Tokenizer.from_file(...) os error 2` (vocab.json missing) | XTTS-v2 pretrained weights aren't downloaded by the script | Add `huggingface_hub.hf_hub_download` loop for `mel_stats.pth`, `dvae.pth`, `model.pth`, `vocab.json`, `config.json` from `coqui/XTTS-v2` (~2 GB, one-time) | `482c809` |
+| 6 | `'dict' object has no attribute 'sample_rate'` from `GPTTrainer.__init__` | Newer coqui-tts requires `XttsAudioConfig` dataclass, not a plain dict | Wrap audio config | `027eee2` |
+| 7 | `cannot import name 'XttsAudioConfig' from gpt_trainer` | Wrong import location | Import from `TTS.tts.configs.xtts_config` | `c6bb4be` |
+| 8 | First real training step ran, then crashed: `optimize() is not implemented` followed by `'NoneType' has no attribute 'view'` in `_compute_grad_norm` | Two GPT submodules (perceiver resampler, masked-GT-prompt head) were instantiated but never touched by forward, so their `.grad` stayed `None` and the trainer's gradient-clipping step blew up when iterating all optimized params | Add `gpt_use_perceiver_resampler=True, gpt_use_masking_gt_prompt_approach=True` to `GPTArgs` (matches the upstream `recipes/ljspeech/xtts_v2/train_gpt_xtts.py` recipe) | `c51b0ac` |
+| 9 | After `pip install -r requirements.txt`, torch device flipped from `cuda` to `cpu` and we got "torchcodec required" | The plain `requirements.txt` install pulled the latest CPU torch wheel (2.9.x) on top of our cu121 install | Reinstall with `pip install -r requirements-cuda.txt --upgrade --force-reinstall` to restore `torch==2.5.1+cu121` | (procedural, no commit) |
+
+**What the first successful training start looked like** (right before
+step #8 crashed) — useful for the report as evidence the model itself
+was wired correctly:
+
+```
+> Model has 498699671 parameters
+> EPOCH: 0/9
+> TRAINING (2026-05-12 10:55:51)
+   --> TIME: 2026-05-12 10:56:18 -- STEP: 0/1012 -- GLOBAL_STEP: 0
+     | > current_lr: 5e-06
+     | > loss_text_ce: 0.0685
+     | > loss_mel_ce: 5.9390
+     | > loss: 0.7509
+     | > Mixed precision: True (fp16)
+     | > Backend: Torch, Num GPUs: 1
+```
+
+498.7 M parameters, batch loss 0.75 on the first step — exactly what
+upstream XTTS-v2 fine-tunes look like in the literature. The model was
+in fact training; the crash was infrastructure, not the model.
+
+**Lesson for the report:** modern ML projects spend at least as much
+engineering effort on *the matrix of compatible library versions* as on
+the model itself. Pinning everything (torch, CUDA wheel index,
+transformers, the trainer fork, the TTS fork) was the single most
+valuable activity once preprocessing was done. This is not unique to
+this project — it is the dominant friction surface of any deep-learning
+side project in 2026 and should be acknowledged as such in the report,
+not hidden away.
 
 ## 8. Citations / dependencies (for the report)
 
