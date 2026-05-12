@@ -108,7 +108,8 @@ def run_xtts_finetune(cfg: TrainConfig, dataset_root: Path, out_dir: Path) -> Pa
     try:
         from TTS.tts.configs.xtts_config import XttsConfig
         from TTS.tts.models.xtts import Xtts
-        from TTS.tts.layers.xtts.trainer.gpt_trainer import GPTArgs, GPTTrainer, GPTTrainerConfig, XttsAudioConfig
+        from TTS.tts.layers.xtts.trainer.gpt_trainer import GPTArgs, GPTTrainer, GPTTrainerConfig
+        from TTS.tts.configs.xtts_config import XttsAudioConfig
         from trainer import Trainer, TrainerArgs
     except Exception as e:
         raise SystemExit(
