@@ -152,6 +152,8 @@ def run_xtts_finetune(cfg: TrainConfig, dataset_root: Path, out_dir: Path) -> Pa
             gpt_num_audio_tokens=1026,
             gpt_start_audio_token=1024,
             gpt_stop_audio_token=1025,
+            gpt_use_masking_gt_prompt_approach=True,
+            gpt_use_perceiver_resampler=True,
         ),
         run_name=cfg.run_name,
         project_name="aivoicemaker",
